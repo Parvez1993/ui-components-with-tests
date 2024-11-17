@@ -1,14 +1,8 @@
-// Pagination.test.jsx
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import Pagination from '../pages/Pagination';
 
-/**
- * Mock Data Setup
- * --------------
- * We use these mock objects to simulate API responses
- */
 const mockPosts = {
     posts: [
         { id: 1, title: 'Test Post 1', body: 'Test body 1' },
@@ -17,44 +11,36 @@ const mockPosts = {
     total: 30
 };
 
-// Mock fetch globally before all tests
+// Mock fetch globally
 global.fetch = jest.fn();
 
 describe('Pagination Component Tests', () => {
-    // Reset mocks before each test to ensure clean state
     beforeEach(() => {
         fetch.mockReset();
     });
 
-    /**
-     * Unit Tests
-     * ----------
-     * Testing individual component behaviors in isolation
-     */
     describe('1. Unit Tests', () => {
-        /**
-         * Test: Initial Loading State
-         * Purpose: Verify that loading indicator appears when component mounts
-         */
-        test('1.1 displays loading state initially', () => {
-            // Setup mock API response
+        test('1.1 displays loading state initially', async () => {
+            // Setup mock API response with delay to ensure loading state is caught
             fetch.mockImplementationOnce(() =>
-                Promise.resolve({
-                    json: () => Promise.resolve(mockPosts)
-                })
+                new Promise(resolve =>
+                    setTimeout(() => {
+                        resolve({
+                            json: () => Promise.resolve(mockPosts)
+                        });
+                    }, 100)
+                )
             );
 
-            // Render component
-            render(<Pagination />);
+            // Wrap render in act
+            await act(async () => {
+                render(<Pagination />);
+            });
 
-            // Assert loading state
+            // Check loading state
             expect(screen.getByText('Loading...')).toBeInTheDocument();
         });
 
-        /**
-         * Test: Pagination Buttons Rendering
-         * Purpose: Verify correct number of pagination buttons are rendered
-         */
         test('1.2 renders correct number of pagination buttons', async () => {
             fetch.mockImplementationOnce(() =>
                 Promise.resolve({
@@ -62,9 +48,10 @@ describe('Pagination Component Tests', () => {
                 })
             );
 
-            render(<Pagination />);
+            await act(async () => {
+                render(<Pagination />);
+            });
 
-            // Wait for and verify pagination buttons
             await waitFor(() => {
                 const paginationButtons = screen.getAllByRole('button');
                 const expectedButtons = Math.ceil(mockPosts.total / 10);
@@ -72,10 +59,6 @@ describe('Pagination Component Tests', () => {
             });
         });
 
-        /**
-         * Test: Post Content Rendering
-         * Purpose: Verify posts are rendered correctly with their titles
-         */
         test('1.3 renders posts correctly', async () => {
             fetch.mockImplementationOnce(() =>
                 Promise.resolve({
@@ -83,9 +66,10 @@ describe('Pagination Component Tests', () => {
                 })
             );
 
-            render(<Pagination />);
+            await act(async () => {
+                render(<Pagination />);
+            });
 
-            // Verify post content
             await waitFor(() => {
                 expect(screen.getByText('Test Post 1')).toBeInTheDocument();
                 expect(screen.getByText('Test Post 2')).toBeInTheDocument();
@@ -93,18 +77,8 @@ describe('Pagination Component Tests', () => {
         });
     });
 
-    /**
-     * Integration Tests
-     * ----------------
-     * Testing component interactions and data flow
-     */
     describe('2. Integration Tests', () => {
-        /**
-         * Test: Page Navigation
-         * Purpose: Verify data updates when navigating between pages
-         */
         test('2.1 fetches and updates data when page changes', async () => {
-            // Mock data for second page
             const mockPage2Posts = {
                 posts: [
                     { id: 3, title: 'Test Post 3', body: 'Test body 3' },
@@ -113,7 +87,6 @@ describe('Pagination Component Tests', () => {
                 total: 30
             };
 
-            // Setup sequential mock responses
             fetch
                 .mockImplementationOnce(() => Promise.resolve({
                     json: () => Promise.resolve(mockPosts)
@@ -122,16 +95,19 @@ describe('Pagination Component Tests', () => {
                     json: () => Promise.resolve(mockPage2Posts)
                 }));
 
-            render(<Pagination />);
+            await act(async () => {
+                render(<Pagination />);
+            });
 
             // Wait for initial render
             await waitFor(() => {
                 expect(screen.getByText('Test Post 1')).toBeInTheDocument();
             });
 
-            // Trigger page navigation
-            const secondPageButton = screen.getAllByRole('button')[1];
-            fireEvent.click(secondPageButton);
+            // Click second page button
+            await act(async () => {
+                fireEvent.click(screen.getAllByRole('button')[1]);
+            });
 
             // Verify new page content
             await waitFor(() => {
@@ -140,32 +116,25 @@ describe('Pagination Component Tests', () => {
             });
         });
 
-        /**
-         * Test: Error Handling
-         * Purpose: Verify component handles API errors gracefully
-         */
         test('2.2 handles API error gracefully', async () => {
-            // Mock API error
+            const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
+
             fetch.mockImplementationOnce(() =>
                 Promise.reject(new Error('API Error'))
             );
 
-            const consoleSpy = jest.spyOn(console, 'log');
-            render(<Pagination />);
-
-            await waitFor(() => {
-                expect(consoleSpy).toHaveBeenCalledWith(expect.any(Error));
+            await act(async () => {
+                render(<Pagination />);
             });
 
-            consoleSpy.mockRestore();
+            await waitFor(() => {
+                expect(consoleLogSpy).toHaveBeenCalledWith(expect.any(Error));
+            });
+
+            consoleLogSpy.mockRestore();
         });
     });
 
-    /**
-     * Edge Cases
-     * ----------
-     * Testing boundary conditions and error scenarios
-     */
     describe('3. Edge Cases', () => {
         test('3.1 handles empty data array', async () => {
             fetch.mockImplementationOnce(() =>
@@ -174,7 +143,9 @@ describe('Pagination Component Tests', () => {
                 })
             );
 
-            render(<Pagination />);
+            await act(async () => {
+                render(<Pagination />);
+            });
 
             await waitFor(() => {
                 const posts = screen.queryAllByRole('article');
@@ -194,7 +165,9 @@ describe('Pagination Component Tests', () => {
                 })
             );
 
-            render(<Pagination />);
+            await act(async () => {
+                render(<Pagination />);
+            });
 
             await waitFor(() => {
                 const post = screen.getByRole('article');
